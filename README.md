@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  [Quickstart Guide](QUICKSTART.md)
+  <a href="QUICKSTART.md">Quickstart Guide</a>
 </p>
 
 ## Prerequisites
