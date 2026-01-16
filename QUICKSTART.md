@@ -1,9 +1,9 @@
-# SS14 Tiled - Quick Start
+# Outset - Quick Start
 
 ## Running the GUI 
 
 ### Download Pre-built EXE
-1. Download `Outset.exe` from the [releases page](https://github.com/OneFoxAlone/ss14_tiled/releases)
+1. Download `Outset.exe` from the [releases page](https://github.com/OneFoxAlone/Outset/releases)
 2. Double-click to run
 3. On first run, it automatically installs dependencies (internet required)
 4. Select your SS14 folder using the "Browse..." button
@@ -11,7 +11,7 @@
 6. Wait for completion, then use the generated files in Tiled
 
 ### Build EXE from Source
-1. Clone the repository: `git clone https://github.com/OneFoxAlone/ss14_tiled`
+1. Clone the repository: `git clone https://github.com/OneFoxAlone/Outset`
 2. `cd ss14_tiled`
 3. Run: `python build_exe.py`
 4. The EXE will be in `dist/Outset.exe`
@@ -58,7 +58,7 @@
 
 ### Development Setup
 ```powershell
-git clone https://github.com/OneFoxAlone/ss14_tiled
+git clone https://github.com/OneFoxAlone/Outset
 cd ss14_tiled
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
