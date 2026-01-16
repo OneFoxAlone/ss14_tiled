@@ -15,6 +15,14 @@ Only necessary if you want to build the tile sets yourself.
 
 ## Usage
 
+### Windows Standalone EXE
+
+Download the latest release from the [releases page](https://github.com/OneFoxAlone/ss14_tiled/releases) and run `SS14Tiled.exe`. On first run, it will automatically install required dependencies.
+
+See [BUILD_EXE.md](BUILD_EXE.md) for build instructions.
+
+### CLI (Requires Python)
+
 <table>
 <tr>
 <th>Linux</th>
@@ -46,19 +54,21 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# Generate or update the tile sets.
+# CLI mode
 python -m ss14_tiled /path/to/space-station-14/
+
+# GUI mode
+python -m ss14_tiled.gui_main
 ```
 
 </td>
 </tr>
 </table>
 
-- This creates a `dist` directory with all the tile sets.
-  - Alternatively you can download them from the [releases page](https://github.com/Ian321/ss14_tiled/releases).
+- This creates a `dist` directory with all the tile sets..
 - Once you got the tile sets (the `.tsx` files),
   you can create a new map in Tiled and drag them into "Tilesets" tab.
-  - Make sure the tile size is set to 32x32 (default), cause that's what SS14 uses.
+  - Make sure the tile size is set to 32x32 (default), as that's what SS14 uses.
 
 ## TODO
 
@@ -67,3 +77,5 @@ python -m ss14_tiled /path/to/space-station-14/
   - [x] Entities
   - [x] Tiles
 - [ ] Export (Tiled -> SS14)
+- [x] Easy-To-Use GUI
+- [x] Performace Improvements & Fixes

@@ -1,11 +1,12 @@
 """Everything for the "decal"-tiles."""
 import json
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import cv2
 import yaml
 
-from ..shared import CacheJSON, Image, create_tsx, remove_prefix
+from ..shared import CacheJSON, Image, create_tsx, remove_prefix, fix_png_color_profile, eprint
 
 
 def create_decals(root: Path, out: Path):
@@ -33,30 +34,67 @@ def _create_decals(root: Path, out: Path, name: str = "", color: str = "#FFF"):
     yml_dir = resources_dir / "Prototypes/Decals"
     files = [x for x in yml_dir.glob("**/*.yml") if x.is_file()]
 
+    # Collect all decals to process
+    decals_to_process = []
     for file in files:
-        data = yaml.safe_load(file.read_text("UTF-8"))
+        try:
+            file_content = file.read_text("UTF-8")
+            # Convert tabs to spaces (YAML doesn't allow tabs)
+            file_content = file_content.replace('\t', '    ')
+            data = yaml.safe_load(file_content)
+        except yaml.YAMLError as e:
+            eprint(f"Error parsing YAML file {file}: {str(e)}")
+            continue
+        
+        if not data:
+            continue
+        
         for decal in data:
-            if decal["type"] != "decal":
-                continue  # alias?
+            if not decal or decal.get("type") != "decal":
+                continue  # alias or null entry?
+            decals_to_process.append((decal, resources_dir, decals_out, color, dir_name))
+
+    # Process decals in parallel
+    def process_decal(args):
+        decal, resources_dir, decals_out, color, dir_name = args
+        try:
             sprite: Path = resources_dir / "Textures" / \
                 remove_prefix(decal["sprite"]["sprite"], "/Textures/") / \
                 (str(decal["sprite"]["state"]) + ".png")
             dest: Path = decals_out / (str(decal["id"]) + sprite.suffix)
-            img = cv2.imread(sprite, cv2.IMREAD_UNCHANGED)
+            
+            # Fix PNG color profile issues before processing
+            fix_png_color_profile(sprite)
+            
+            img = cv2.imread(str(sprite), cv2.IMREAD_UNCHANGED)
+            if img is None:
+                eprint(f"Failed to read decal sprite: {sprite}")
+                return None
+            
             height, width, dim = img.shape
             if dim == 3:
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA)
                 dim = 4
 
             img = decal_colors(img, color)
-            cv2.imwrite(dest, img)
+            cv2.imwrite(str(dest), img)
+            
+            return (decal["id"], width, height, dir_name, dest.name)
+        except Exception as e:
+            eprint(f"Error processing decal {decal.get('id', 'unknown')}: {str(e)}")
+            return None
 
-            # Update the sprite but not the index.
-            if decal["id"] in existing.ids:
-                continue
-            existing.ids.append(decal["id"])
-            existing.images.append(
-                Image(f"./.images/{dir_name}/{dest.name}", str(width), str(height)))
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(process_decal, args) for args in decals_to_process]
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                decal_id, width, height, dir_name, dest_name = result
+                if decal_id not in existing.ids:
+                    existing.ids.append(decal_id)
+                    existing.images.append(
+                        Image(f"./.images/{dir_name}/{dest_name}", str(width), str(height)))
 
     existing_out.write_text(json.dumps(existing, default=vars), "UTF-8")
     create_tsx(existing, title, out /

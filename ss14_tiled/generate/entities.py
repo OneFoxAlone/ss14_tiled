@@ -7,7 +7,7 @@ import cv2
 import yaml
 
 from ..shared import (CacheJSON, Image, add_transparent_image, create_tsx,
-                      eprint, remove_prefix)
+                      eprint, remove_prefix, fix_png_color_profile)
 
 
 def create_entities(root: Path, out: Path):
@@ -124,6 +124,10 @@ def create_entities(root: Path, out: Path):
                         per_direction = len(state["delays"][0])
 
                     layer_image_file = layer_rsi_file.parent / (state["name"] + ".png")
+                    
+                    # Fix PNG color profile issues before processing
+                    fix_png_color_profile(layer_image_file)
+                    
                     layer_image = cv2.imread(layer_image_file, cv2.IMREAD_UNCHANGED)
                     height, width, dim = layer_image.shape
                     if dim == 3:
@@ -160,17 +164,31 @@ def create_entities(root: Path, out: Path):
                         # Just center it, as the only entity that uses this is the gravity-gen.
                         m_height = max(e_height, height)
                         m_width = max(e_width, width)
+                        
+                        # Calculate padding for img (existing image)
+                        top_pad = (m_height - e_height) // 2
+                        bottom_pad = m_height - e_height - top_pad
+                        left_pad = (m_width - e_width) // 2
+                        right_pad = m_width - e_width - left_pad
+                        
                         img = cv2.copyMakeBorder(img,
-                                                 (m_height - e_height) // 2,
-                                                 (m_height - e_height) // 2,
-                                                 (m_width - e_width) // 2,
-                                                 (m_width - e_width) // 2,
+                                                 top_pad,
+                                                 bottom_pad,
+                                                 left_pad,
+                                                 right_pad,
                                                  cv2.BORDER_CONSTANT, value=[0, 0, 0, 0])
+                        
+                        # Calculate padding for layer_image (new layer)
+                        top_pad_layer = (m_height - height) // 2
+                        bottom_pad_layer = m_height - height - top_pad_layer
+                        left_pad_layer = (m_width - width) // 2
+                        right_pad_layer = m_width - width - left_pad_layer
+                        
                         layer_image = cv2.copyMakeBorder(layer_image,
-                                                         (m_height - height) // 2,
-                                                         (m_height - height) // 2,
-                                                         (m_width - width) // 2,
-                                                         (m_width - width) // 2,
+                                                         top_pad_layer,
+                                                         bottom_pad_layer,
+                                                         left_pad_layer,
+                                                         right_pad_layer,
                                                          cv2.BORDER_CONSTANT, value=[0, 0, 0, 0])
                         add_transparent_image(img, layer_image)
 
@@ -216,9 +234,18 @@ def find_entities(root: Path) -> list[dict]:
     children = []
     adults = {}
     for file in files:
-        for entity in yaml.load(file.read_text("UTF-8"), Loader=SafeLoadIgnoreUnknown) or []:
-            if entity["type"] != "entity":
-                continue  # alias?
+        try:
+            file_content = file.read_text("UTF-8")
+            # Convert tabs to spaces (YAML doesn't allow tabs)
+            file_content = file_content.replace('\t', '    ')
+            entities_list = yaml.load(file_content, Loader=SafeLoadIgnoreUnknown) or []
+        except yaml.YAMLError as e:
+            eprint(f"Error parsing YAML file {file}: {str(e)}")
+            continue
+        
+        for entity in entities_list:
+            if not entity or entity.get("type") != "entity":
+                continue  # alias or null entry?
             if "parent" in entity:
                 if isinstance(entity["parent"], str):
                     entity["parent"] = [entity["parent"]]

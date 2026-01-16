@@ -5,10 +5,72 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 
+try:
+    from PIL import Image as PILImage
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
+
+# Global cache for fixed PNG files to avoid reprocessing
+_PNG_FIX_CACHE = set()
+
 
 def eprint(*args, **kwargs):
     """Print to std-error."""
     print(*args, file=sys.stderr, **kwargs)
+
+
+def fix_png_color_profile(image_path: Path) -> None:
+    """Fix PNG color profile issues by removing problematic iCCP chunks.
+    
+    Rewrites PNG files to remove incorrect color profile metadata that causes
+    libpng warnings without affecting the actual image data.
+    Uses caching to avoid reprocessing the same file.
+    """
+    if not HAS_PIL:
+        return
+    
+    # Check cache first
+    if str(image_path) in _PNG_FIX_CACHE:
+        return
+    
+    try:
+        if image_path.suffix.lower() != '.png':
+            return
+        
+        # Open the PNG file
+        img = PILImage.open(image_path)
+        
+        # Create a clean image without ICC profiles
+        # Save with default parameters which won't include problematic profiles
+        data = list(img.getdata())
+        
+        if img.mode == 'RGBA':
+            clean_img = PILImage.new('RGBA', img.size)
+        elif img.mode == 'RGB':
+            clean_img = PILImage.new('RGB', img.size)
+        elif img.mode == 'LA':
+            clean_img = PILImage.new('LA', img.size)
+        elif img.mode == 'L':
+            clean_img = PILImage.new('L', img.size)
+        elif img.mode == 'P':
+            # Palette mode - keep palette but remove iCCP
+            clean_img = PILImage.new('P', img.size)
+            if img.palette:
+                clean_img.putpalette(img.palette.getdata()[1])
+        else:
+            clean_img = PILImage.new(img.mode, img.size)
+        
+        clean_img.putdata(data)
+        
+        # Save without any color profiles, strips iCCP chunks
+        clean_img.save(image_path, 'PNG', icc_profile=None)
+        
+        # Mark as fixed in cache
+        _PNG_FIX_CACHE.add(str(image_path))
+    except Exception:
+        # Silently fail - file is still usable even if profile isn't fixed
+        pass
 
 
 @dataclass

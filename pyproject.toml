@@ -5,7 +5,8 @@ readme = {file = "README.md", content-type = "text/markdown"}
 dynamic = ["dependencies", "version"]
 
 [project.scripts]
-ss14-tiled = "ss14_tiled:main"
+ss14-tiled = "ss14_tiled.cli:main"
+ss14-tiled-gui = "ss14_tiled.gui_main:main"
 
 [tool.setuptools.dynamic]
 dependencies = { file = ["requirements.txt"] }

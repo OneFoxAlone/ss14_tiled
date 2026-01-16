@@ -1,5 +1,8 @@
 autopep8
 deepdiff
 opencv-python
+pillow
 pylint
 pyyaml
+PyQt6>=6.0.0
+PyQt6-Qt6>=6.0.0
